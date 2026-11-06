@@ -68,6 +68,18 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
     }
 
     @Override
+    public SysUserDTO getByGoogleId(String googleId) {
+        QueryWrapper<SysUserEntity> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("google_id", googleId);
+        List<SysUserEntity> users = sysUserDao.selectList(queryWrapper);
+        if (users == null || users.isEmpty()) {
+            return null;
+        }
+        SysUserEntity entity = users.get(0);
+        return ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(SysUserDTO dto) {
         SysUserEntity entity = ConvertUtils.sourceToTarget(dto, SysUserEntity.class);

@@ -44,4 +44,14 @@ public class SysUserEntity extends BaseEntity {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Date updateDate;
 
+    /**
+     * 谷歌登录ID
+     */
+    private String googleId;
+
+    /**
+     * 邮箱
+     */
+    private String email;
+
 }

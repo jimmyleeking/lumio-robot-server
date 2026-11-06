@@ -17,6 +17,8 @@ public interface SysUserService extends BaseService<SysUserEntity> {
 
     SysUserDTO getByUserId(Long userId);
 
+    SysUserDTO getByGoogleId(String googleId);
+
     void save(SysUserDTO dto);
 
     /**
