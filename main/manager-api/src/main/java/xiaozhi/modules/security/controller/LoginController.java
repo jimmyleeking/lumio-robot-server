@@ -31,8 +31,12 @@ import xiaozhi.common.utils.Sm2DecryptUtil;
 import xiaozhi.common.validator.AssertUtils;
 import xiaozhi.common.validator.ValidatorUtils;
 import xiaozhi.modules.security.dto.LoginDTO;
+import xiaozhi.modules.security.dto.GoogleLoginDTO;
+import xiaozhi.modules.security.dto.DeviceLoginDTO;
 import xiaozhi.modules.security.dto.SmsVerificationDTO;
 import xiaozhi.modules.security.password.PasswordUtils;
+import xiaozhi.modules.device.entity.DeviceEntity;
+import xiaozhi.modules.device.service.DeviceService;
 import xiaozhi.modules.security.service.CaptchaService;
 import xiaozhi.modules.security.service.SysUserTokenService;
 import xiaozhi.modules.security.user.SecurityUser;
@@ -58,6 +62,7 @@ public class LoginController {
     private final CaptchaService captchaService;
     private final SysParamsService sysParamsService;
     private final SysDictDataService sysDictDataService;
+    private final DeviceService deviceService;
 
     @GetMapping("/captcha")
     @Operation(summary = "验证码")
@@ -66,6 +71,53 @@ public class LoginController {
         AssertUtils.isBlank(uuid, ErrorCode.IDENTIFIER_NOT_NULL);
         // 生成验证码
         captchaService.create(response, uuid);
+    }
+
+    @PostMapping("/login/google")
+    @Operation(summary = "谷歌登录")
+    public Result<TokenDTO> loginGoogle(@RequestBody GoogleLoginDTO login) {
+        String googleId = login.getGoogleId();
+        String email = login.getEmail();
+        String username = "google_" + googleId;
+
+        // 这里仅为了演示和架构验证，实际应对接Google API Client以防止伪造
+        if (org.apache.commons.lang3.StringUtils.isBlank(googleId)) {
+            throw new RenException(ErrorCode.UNAUTHORIZED);
+        }
+
+        SysUserDTO userDTO = sysUserService.getByGoogleId(googleId);
+        if (userDTO == null) {
+            // 自动注册
+            userDTO = new SysUserDTO();
+            userDTO.setUsername(username);
+
+            // 生成随机安全密码，避免安全漏洞
+            String randomPass = java.util.UUID.randomUUID().toString().substring(0, 8) + "G!1";
+            userDTO.setPassword(randomPass);
+            userDTO.setEmail(email);
+
+            sysUserService.save(userDTO);
+            userDTO = sysUserService.getByUsername(username);
+
+            // 更新实体的 google_id
+            xiaozhi.modules.sys.entity.SysUserEntity entity = new xiaozhi.modules.sys.entity.SysUserEntity();
+            entity.setId(userDTO.getId());
+            entity.setGoogleId(googleId);
+            entity.setEmail(email);
+            sysUserService.updateById(entity);
+        }
+
+        return sysUserTokenService.createToken(userDTO.getId());
+    }
+
+    @PostMapping("/login/device")
+    @Operation(summary = "设备登录")
+    public Result<TokenDTO> loginDevice(@RequestBody DeviceLoginDTO login) {
+        DeviceEntity device = deviceService.getDeviceByMacAddress(login.getMacAddress());
+        if (device == null) {
+             throw new RenException(ErrorCode.ACCOUNT_PASSWORD_ERROR);
+        }
+        return sysUserTokenService.createToken(device.getUserId());
     }
 
     @PostMapping("/smsVerification")
